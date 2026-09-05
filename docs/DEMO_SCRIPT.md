@@ -1,44 +1,43 @@
-# Demo Script — 3-minute video
+# Demo Script — 3-minute trailer
 
 Rule: everything is live. No slides, no mocked fills, no cuts inside a beat.
+The desk must be running against the real Agent OS MCP server before recording.
 
 ## Beat sheet
 
 **0:00–0:10 — Hook.**
-Screen on the public dashboard, live decision log scrolling, real P&L ticking.
-VO: *"For the entire duration of this hackathon, an AI has been running a real fund on
-Binance. Every decision it made is public. It's still running right now — this is its
-transcript. And on Tuesday, I fired it mid-order."*
+Screen on the public books dashboard, feed scrolling, self-funded % ticking.
+VO: *"This is a trading desk run by an AI. It charges rent per trade, pays its own
+hosting bill, and cannot break its own rules — watch me try to make it."*
 
 **0:10–0:50 — Plain English → mandate.**
-Type the persona strategy live: "Buy ₦50k of BTC every Friday. Sell 20% if it pumps 10%.
-Never lose more than ₦10k."
-Show the compiled mandate contract, including one deliberate ambiguity and the
-conservative-interpretation note. One click: approve. Show the Agent OS permission grant
-being created scoped to the mandate.
+Paste a degen reply live: "YOLO into PEPE, 50x leverage." The compiler clamps it:
+size → cap, leverage unexpressible, note recorded. Approve the contract. Show the
+Agent OS permission grant scoped to the mandate (keyless, from the Binance side).
 
 **0:50–1:50 — Governed execution.**
-Trigger the Friday rule (or a compressed demo schedule). Order goes to the MCP server →
-fills on the dedicated sub-account → show the fill on Binance next to the audit log line.
-Then try to make it break its own rules: ask it to buy a non-whitelisted symbol and to
-exceed the notional cap. Refusals on camera, each with the mandate clause quoted back.
+A real signal arrives (webhook/alert). Order hits the MCP server → fills on the
+dedicated sub-account → Binance order history next to the books line. Then the
+attacks: a 250-USDT intent **clamped** to the cap mid-request; an out-of-whitelist
+symbol **refused** with the clause quoted; a position walked into the desk floor and
+**force-exited** with a `RISK_EXIT` on the books.
 
 **1:50–2:30 — The kill switch.**
-The agent is mid-decision on a live order. Revoke its Agent OS permission from the Binance
-side. Show: decision made → execution refused → agent detects revocation, halts itself,
-marks the mandate dead in the audit log. VO: *"Permission revoked between its thought and
+The desk is mid-decision on a live order. Revoke the agent's permission from Binance
+([Disconnect Agents] — or Emergency Stop). Show: decision made → execution refused →
+desk marks the customer dead, books record it. VO: *"Revoked between its thought and
 its trade."*
 
 **2:30–3:00 — Receipts + close.**
-Three artifacts agreeing with each other: the public dashboard, the hash-chained audit
-log, the Binance order history — plus the daily letters thread on X. Close on the pitch
-line: *"Every other entry is a video of something that happened once. Ours has been
-running the whole time — the URL is in the post. Built on Binance Agent OS: real money,
-scoped permissions, a kill switch you actually use, and 72 hours of receipts."*
+Three artifacts agreeing: the public books, the hash-chained audit log, the Binance
+order history. Then the funnel line: *"Same mandate, three stages — backtest, paper
+on live prices, live. Only the broker changes."* Close: *"It's been running since
+day one of the hackathon. The URL is in the post. Built on Binance Agent OS."*
 
-## Pre-flight checklist (before recording)
+## Pre-flight checklist
 
-- [ ] Fresh sub-account balance noted on screen for transparency
+- [ ] Real MCP connection verified; at least one real fill already on the books
 - [ ] Kill-switch beat rehearsed twice — it is the moment, do not improvise it
-- [ ] Timer run-through: must land under 3:00 with room to breathe
-- [ ] Record at 1080p minimum, terminal font readable on a phone screen
+- [ ] Timer run-through: under 3:00 with room to breathe
+- [ ] 1080p minimum; dashboard font readable on a phone screen
+- [ ] Sub-account balance visible once for transparency

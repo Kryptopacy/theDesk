@@ -1,49 +1,71 @@
-# The 72-Hour Fund
+# The Desk
 
-**An AI agent ran a real fund on Binance for the entire duration of the hackathon. This is its transcript.**
+**An AI agent runs a trading desk on Binance. You keep the strategy, it keeps the discipline, and it charges rent.**
 
 Built on [Binance Agent OS](https://www.binance.com/en/blog/ecosystem/5991233187660196794) for the Agent OS Mini Hackathon (Track A, deadline 2026-09-08 23:59 UTC).
 
-## The concept
+The Desk is an execution & risk layer: customers pipe signals in — a plain-English strategy, an indicator rule set, or raw trade intents from any webhook or bot — and the desk executes them on Binance under per-customer **risk envelopes**, charging a fee per fill. It pays its own hosting and inference bills from that revenue, and every decision lands on public, hash-chained books.
 
-A micro-fund ($10 USDT — deliberately pocket-change, the "people's fund") managed end-to-end by an autonomous agent — opened when the hackathon clock started, closed at the submission deadline. Not a demo of an agent: **a living entry.**
+> Signals are untrusted; bounded downside is the product. The customer's strategy decides when to enter; the desk guarantees the worst-case exit.
 
-- **Every decision is public, live.** A public dashboard streams the agent's full decision log — every market observation, every reasoning step, every order, every fill, running P&L — updated continuously. A black box recorder that isn't black.
-- **It writes to its shareholders.** The agent publishes a daily letter on X: what it did, why, what it's watching. The submission isn't a one-shot post; it's the final entry in a thread the judges can scroll.
-- **It cannot break its policy.** The fund operates under a mandate contract (whitelisted symbols, per-order notional cap, daily loss cap, kill conditions) enforced before every action — and the Agent OS permission grant is scoped to the mandate itself. The agent structurally cannot exceed it.
-- **You can fire it mid-order.** Permissions are revocable at any moment; the revocation binds between decision and execution. Demonstrated live in the trailer.
+## Why this is different
 
-## Why it's uncontestable
+1. **Revenue is not alpha.** "The agent pays its bills" is usually backed by trading luck. Here it's backed by customer fees — an honest P&L with a `self-funded %` line on the public books.
+2. **Every input passes the same gate.** A webhook has no privileges an internal engine doesn't have. Over-cap intents get **clamped, on the record**; out-of-whitelist symbols get refused with the clause quoted.
+3. **One mandate, three stages.** `backtest → paper → live` — same contract, same risk engine, same adverse-slippage assumption; only the broker changes. Backtests run the full risk stack (desk floor, loss cap, clamps), so strategies that would have been force-exited don't get to look good.
+4. **It's the layer, not a rival.** Per-customer envelopes map 1:1 onto Agent OS's own primitives: dedicated sub-accounts, granular per-feature permissions, individual disconnect, emergency killswitch — demonstrated mid-order in the demo.
 
-1. **Evidence, not claims.** 500 entries will ask judges to believe a video. This one says: *it is running right now — here's the URL, here's all of it.*
-2. **The time moat.** Continuous audited autonomy cannot be faked, and another entrant starting Sept 7 has 24 hours of runtime, not 72. The clock is the component nobody can code around.
-3. **No losing outcome.** Sized so every result is the good story: profit → it works. Loss → total transparency, public autopsy. Flat → 72 hours of discipline, zero rule breaks.
-4. **It demos Binance's own pitch.** An agent holding real money under scoped, revocable permissions for 72 continuous hours is the strongest proof of their keyless-connect + kill-switch story — showcaseable by their social team as-is.
+## The risk stack (active on every intent)
+
+1. **Order gate** — whitelist, per-order cap, exchange min notional, BUY/SELL allowlist, revoked-customer check
+2. **Position guard** — customer stop-loss / take-profit plus an **immutable desk drawdown floor** (tighten-only); force-exits are logged as desk-initiated `RISK_EXIT`. Perp envelopes: the floor is taken at half the estimated liquidation distance — the desk always exits before the liquidation engine
+3. **Day guard** — daily loss cap halts the envelope until the next UTC day
+4. **The plug** — founder revocation binds mid-flight
+
+## The rule language
+
+Indicators are series; conditions compare series-to-series or series-to-constant (`above` / `below` / `crosses_above` / `crosses_below`); triggers combine with `all` / `any` / `at_least k` — **confluence as a primitive** — and `for_bars` adds persistence ("RSI below 35 *for 2 bars*"). Library from keyless public OHLCV: `rsi`, `sma`, `ema`, `bb_pct`, `macd_hist`, `stoch`, `atr_pct`, `volume_ratio`, `roc`, `breakout_high`, `breakout_low`. Unknown vocabulary is refused by the validators — including for plain-English compilations ([COMPILER_PROMPT](docs/COMPILER_PROMPT.md)).
 
 ## Architecture
 
 ```
-Market data (MCP) ──▶ ┌──────────────────────────────┐
-                      │   Governed Executor           │──▶ Binance Agent OS MCP
-Policy (mandate) ───▶ │   mandate checker → decide →  │    (scoped permissions,
-                      │   order → verify → log        │     dedicated sub-account)
-                      └──────┬───────────────┬────────┘
-                             │               │
-                     hash-chained       every N min:
-                     audit log (JSONL)  push → public dashboard
-                             │
-                     daily shareholder letter (X)
+signals:  plain English ──▶ compiler ──▶ proposal ──▶ validate ──▶ founder approval ──┐
+          indicator rules (Binance klines, keyless) ─────────────────────────────────┤
+          HTTP intents (webhooks, bots, Telegram, TradingView) ──────────────────────┤
+                                                                                      ▼
+                        ┌──────────────────────────────────────────────────────────────────┐
+                        │  THE DESK                                                        │
+                        │  envelope gate → position guard → day guard → kill switch        │
+                        └──────────────┬───────────────────────────────────┬───────────────┘
+                                       │                                   │
+                        broker: backtest │ paper (live prices) │ live (Agent OS MCP)   
+                                       │                                   │
+                        hash-chained audit log ◀───────────────────────────┘
+                                       │
+                        public books (dashboard) + per-fill fees → self-funding ledger
 ```
 
-**Agent OS components:** MCP server (trading + market data), dedicated sub-account, scoped/revocable permissions (the kill switch), mandate contract compiled from the founder's plain-English policy.
+**Agent OS components:** MCP server (`https://agent.binance.com/mcp/agentic` — Spot / Futures / Convert, market data, account), dedicated sub-account, granular permissions + killswitch. Perp execution unlocks at tool enumeration; the risk model is already instrument-agnostic (funding as a cost line and an indicator condition; isolated margin; exposure caps).
 
 ## Repo layout
 
-- `docs/MANDATE_SPEC.md` — the fund policy contract (schema + worked example)
-- `docs/DEMO_SCRIPT.md` — the 3-minute trailer beat sheet
-- `docs/PLAN.md` — build plan; the moat = hours of runtime banked before the deadline
-- `src/` — executor, audit log, dashboard feed, letter generator
+- `src/desk.mjs` — the desk: HTTP API, envelopes, fee meter, public books (`GET /` = dashboard)
+- `src/envelope.mjs`, `riskguard.mjs` — the risk gate and position guard (pure functions, shared by every input path)
+- `src/conditions.mjs`, `indicators.mjs`, `signals.mjs` — rule language + engine
+- `src/mandate.mjs`, `executor.mjs`, `audit.mjs` — mandate contract, governed executor, hash-chained audit log
+- `src/broker.mjs` (mock) · `paperbroker.mjs` (live prices) · `mcp-broker.mjs` (Agent OS adapter) · `backtest.mjs` (walk-forward)
+- `dashboard/index.html` — public books page
+- `docs/` — [MANDATE_SPEC](docs/MANDATE_SPEC.md) · [PLAN](docs/PLAN.md) · [DEMO_SCRIPT](docs/DEMO_SCRIPT.md) · [CONNECT](docs/CONNECT.md) · [COMPILER_PROMPT](docs/COMPILER_PROMPT.md) · [letter-01](docs/letter-01.md)
 
-## Submission mechanics
+## Try it
 
-Track A: trailer video + this GitHub + survey, posted as the final reply in the fund's own X thread. Follow + repost the [announcement](https://www.binance.com/en/blog/community/8802181509900814931). Track B claimed by the fund's first spot trade.
+```bash
+node src/desk.mjs          # desk on :8787 — dashboard at http://localhost:8787
+node src/backtest.mjs      # walk-forward suite on live data
+node src/signals-demo.mjs  # indicator mandate, live klines
+node src/main.mjs          # governed-loop demo
+```
+
+## Submission
+
+Track A: trailer + this repo + survey, posted as a reply in the desk's X thread ([letter 01](docs/letter-01.md) opens it). Follow + repost the [announcement](https://www.binance.com/en/blog/community/8802181509900814931). Track B is claimed by the desk's first real spot trade.
