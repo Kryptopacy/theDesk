@@ -10,6 +10,7 @@
 // and the same envelope code gates their live fills.
 // Run: node src/desk.mjs  (then curl, see docs/PLAN.md)
 import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
 import { AuditLog } from "./audit.mjs";
 import { MockBroker } from "./broker.mjs";
 import { PaperBroker } from "./paperbroker.mjs";
@@ -91,6 +92,7 @@ const routes = {
     if (v.ok && v.clamped) c.clamps += 1;
     return v.ok ? execute(c, intent, v.notional, v.clamped) : refuse(c, intent, v);
   },
+  "GET /": () => ({ status: 200, raw: true, headers: { "content-type": "text/html" }, body: readFileSync(new URL("../dashboard/index.html", import.meta.url)) }),
   "GET /v1/books": () => {
     const costs = settleCosts();
     const list = [...customers.values()];
@@ -132,9 +134,13 @@ createServer((req, res) => {
     const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString() || "{}") : {};
     const handler = routes[`${req.method} ${req.pathname ?? req.url.split("?")[0]}`];
     let out;
-    try { out = handler ? await handler(body, req.headers["x-api-key"]) : { status: 404, body: { ok: false, error: "no such route" } }; }
-    catch (e) { out = { status: 500, body: { ok: false, error: String(e.message ?? e) } }; }
-    res.writeHead(out.status, { "content-type": "application/json" });
-    res.end(JSON.stringify(out.body, null, 2));
+    try {
+      out = handler ? await handler(body, req.headers["x-api-key"]) : { status: 404, body: { ok: false, error: "no such route" } };
+      res.writeHead(out.status, out.raw ? out.headers : { "content-type": "application/json" });
+      res.end(out.raw ? out.body : JSON.stringify(out.body, null, 2));
+    } catch (e) {
+      console.error("request failed:", e);
+      try { res.writeHead(500, { "content-type": "application/json" }); res.end(JSON.stringify({ ok: false, error: String(e.message ?? e) })); } catch {}
+    }
   });
 }).listen(PORT, () => console.log(`desk listening on http://localhost:${PORT} — books at GET /v1/books`));

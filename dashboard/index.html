@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Desk — public books</title>
+<style>
+  :root { --bg:#0b0e11; --panel:#141a21; --line:#232c36; --text:#e6edf3; --dim:#8b98a5;
+          --green:#2ea043; --red:#f85149; --amber:#d29922; --accent:#58a6ff; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--text); font:14px/1.5 ui-monospace,'Cascadia Mono',Consolas,monospace; padding:24px; max-width:1060px; margin:0 auto; }
+  header { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
+  h1 { font-size:22px; letter-spacing:.5px; }
+  h1 span { color:var(--accent); }
+  .tag { color:var(--dim); font-size:12px; }
+  .audited { color:var(--green); font-size:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:18px 0; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .card .k { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+  .card .v { font-size:20px; margin-top:4px; }
+  .v.green { color:var(--green); } .v.amber { color:var(--amber); }
+  h2 { font-size:13px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin:22px 0 8px; }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; font-size:12.5px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  tr:last-child td { border-bottom:none; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; }
+  .pill.live { background:#12261e; color:var(--green); }
+  .pill.paper { background:#1a2332; color:var(--accent); }
+  .pill.dead { background:#2d1414; color:var(--red); }
+  .badge { font-size:11px; padding:1px 8px; border-radius:10px; }
+  .badge.FILLED { background:#12261e; color:var(--green); }
+  .badge.REFUSED { background:#2d1414; color:var(--red); }
+  .clamp { color:var(--amber); }
+  .detail { color:var(--dim); font-size:11.5px; }
+  footer { margin-top:26px; color:var(--dim); font-size:11.5px; line-height:1.7; }
+  footer a { color:var(--accent); }
+  .note { color:var(--dim); font-size:12px; margin:4px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>THE DESK<span>_</span></h1>
+  <div class="tag">an AI-run execution &amp; risk desk on Binance Agent OS</div>
+  <div class="audited">● public books — hash-chained audit log</div>
+</header>
+<p class="note">Signals in, risk-checked execution out, metered per fill. The agent pays its own bills from revenue. Books refresh every 5s.</p>
+
+<div class="grid" id="stats"></div>
+
+<h2>Funnel</h2>
+<div class="grid" id="funnel"></div>
+
+<h2>Customers &amp; envelopes</h2>
+<table id="customers"><thead><tr>
+  <th>name</th><th>mode</th><th>whitelist</th><th>cap/order</th><th>loss/day</th><th>fills</th><th>clamps</th><th>refusals</th><th>revenue</th>
+</tr></thead><tbody></tbody></table>
+
+<h2>Recent activity</h2>
+<table id="feed"><thead><tr>
+  <th>time</th><th>customer</th><th>intent</th><th>outcome</th><th>detail</th>
+</tr></thead><tbody></tbody></table>
+
+<footer>
+  Risk stack, active on every intent: order gate (whitelist · per-order cap · min notional · action allowlist) →
+  position guard (customer SL/TP + immutable desk drawdown floor) → day guard (daily loss cap) → founder kill switch.<br>
+  Paper fills execute at live Binance prices with adverse slippage and never charge fees; live fills are metered.<br>
+  Built on <a href="https://www.binance.com/en/blog/ecosystem/5991233187660196794">Binance Agent OS</a> · entries close 2026-09-08 23:59 UTC
+</footer>
+
+<script>
+const fmt = (x) => (x ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 });
+function stat(k, v, cls = "") { return `<div class="card"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`; }
+
+async function refresh() {
+  try {
+    const b = await (await fetch("/v1/books")).json();
+    document.getElementById("stats").innerHTML =
+      stat("Revenue (USDT)", fmt(b.revenue_usdt), "green") +
+      stat("Costs (USDT)", fmt(b.costs_usdt)) +
+      stat("Self-funded", b.self_funded_pct + "%", b.self_funded_pct >= 100 ? "green" : "amber") +
+      stat("Uptime", b.uptime_hours + "h");
+    document.getElementById("funnel").innerHTML =
+      stat("Paper envelopes", b.funnel.paper) +
+      stat("Live envelopes", b.funnel.live, "green") +
+      stat("Execution", b.mode);
+    document.querySelector("#customers tbody").innerHTML = b.customers.map((c) => `
+      <tr>
+        <td>${c.name}</td>
+        <td><span class="pill ${c.active ? c.mode : "dead"}">${c.active ? c.mode : "REVOKED"}</span></td>
+        <td class="detail">${c.envelope.symbols.join(", ")}</td>
+        <td>${c.envelope.max_order_notional}</td>
+        <td>${c.envelope.daily_loss_cap}</td>
+        <td>${c.fills}</td>
+        <td class="${c.clamps ? "clamp" : ""}">${c.clamps}</td>
+        <td>${c.refusals}</td>
+        <td>${fmt(c.revenue)}</td>
+      </tr>`).join("");
+    document.querySelector("#feed tbody").innerHTML = b.recent.map((r) => `
+      <tr>
+        <td class="detail">${(r.ts || "").slice(11, 19)}</td>
+        <td>${r.customer} <span class="pill ${r.mode}">${r.mode}</span></td>
+        <td class="detail">${(r.side || "").toUpperCase()} ${r.symbol} ${fmt(r.notional)} ${r.clamped ? '<span class="clamp">CLAMPED</span>' : ""}</td>
+        <td><span class="badge ${r.outcome}">${r.outcome}</span></td>
+        <td class="detail">${r.detail ?? (r.fee != null ? `fee ${fmt(r.fee)}` : "")}</td>
+      </tr>`).join("");
+  } catch (e) { document.getElementById("stats").innerHTML = stat("status", "desk offline", ""); }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

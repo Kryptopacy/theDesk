@@ -21,7 +21,10 @@ Working days remaining: ~3.5 (today is 2026-09-05, Nigeria is UTC+1).
 - [x] Condition language v2 (`src/conditions.mjs`): series-vs-series conditions, all/any/at_least confluence groups, for_bars persistence, 12-indicator library (incl. macd/bollinger/stoch/atr) — confluence demo on live data passes; signals v2 migration regression-verified
 - [x] Leverage design (`src/leverage-demo.mjs`): real funding + liquidation math, force-exit at half liq. distance; execution gated on MCP tool list
 - [x] Backtest mode (`src/backtest.mjs`): walk-forward with full risk stack active (floor, loss cap, clamps), adverse slippage, HODL baseline — 3-mandate suite on live data passes
-- [ ] **PACKAGING PHASE (now the critical path):** git init + GitHub push; dashboard-lite over /v1/books; MCP connect → adapter swap → first real trade (claims Track B) → runtime clock starts; trailer recording
+- [x] **PACKAGING (done 2026-09-05 night):** git repo + initial commit; dashboard (`dashboard/index.html` served at `/` — stats, funnel, envelopes, live feed); CONNECT.md (user's exact MCP checklist incl. server URL + permission toggles); MCP adapter skeleton (`src/mcp-broker.mjs`, real URL, tool names pending enumeration); compiler prompt (`docs/COMPILER_PROMPT.md`, few-shots incl. degen clamp); letter-01 draft
+- [ ] **USER:** MCP connect per docs/CONNECT.md → I enumerate tool list, swap adapter, first real trade (Track B), clock starts
+- [ ] **USER:** create empty public GitHub repo + send URL (I push); or install `gh` and I create it
+- [ ] Letters 02+ daily; trailer on Day 3; survey
 - [ ] LLM compiler prompt: crowd reply text → schema-valid proposal (in-session compilation works for the demo; needs a key for unattended runs)
 - [ ] **First real order executed by the agent tonight → clock starts, banked runtime begins**
 
