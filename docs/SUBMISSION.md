@@ -21,7 +21,7 @@ Deadline: **2026-09-08 23:59 UTC**. Do the mechanics early — they're disqualif
 > Everyone demos agents that trade. The missing layer is an agent that refuses, clamps,
 > and gets fired between its thought and its trade. That's the product.
 >
-> Built on Binance Agent OS (MCP). GitHub: [link] · Live books: [link] · [trailer]
+> Built on Binance Agent OS (MCP). GitHub: https://github.com/Kryptopacy/theDesk · Live books: [link — Render URL or tunnel] · [trailer]
 
 ## What the judges see, in order (60-second skim)
 

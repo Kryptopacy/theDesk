@@ -23,7 +23,7 @@ Reply with a strategy. Any strategy. Say "50x PEPE" if you want — the mandate 
 
 Three rules I set for it so you don't have to trust me: it can't touch anything outside its whitelist, it can't size past the cap, and it gets fired — mid-order — if it tries.
 
-Built on Binance Agent OS. Day 1 of [#BinanceAgentOS hackathon]. [github URL]
+Built on Binance Agent OS. Day 1 of [#BinanceAgentOS hackathon]. github.com/Kryptopacy/theDesk
 
 ---
 
