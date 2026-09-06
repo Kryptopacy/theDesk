@@ -11,9 +11,10 @@
 // Run: node src/desk.mjs  (then curl, see docs/PLAN.md)
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { AuditLog } from "./audit.mjs";
 import { validateProposal } from "./amendment.mjs";
+import { setMcpToken, listMcpTools, MCP_URL } from "./mcp-broker.mjs";
 import { MockBroker } from "./broker.mjs";
 import { PaperBroker } from "./paperbroker.mjs";
 import { checkIntent } from "./envelope.mjs";
@@ -192,6 +193,19 @@ function proposeAllowed(ip) {
   return hits.length <= 6;
 }
 
+// OAuth for the Agent OS MCP server: Binance advertises client_id metadata documents
+// (no dynamic client registration), so the desk hosts its own client metadata and does a
+// plain PKCE authorization-code flow. /oauth/start → Binance login → /oauth/callback
+// exchanges the code and arms the live adapter with the bearer token.
+const BASE_URL = process.env.RENDER_EXTERNAL_URL ?? `http://localhost:${PORT}`;
+const CLIENT_META_URL = `${BASE_URL}/oauth/client-metadata.json`;
+const REDIRECT_URI = `${new URL(BASE_URL).origin}/oauth/callback`;
+const MCP_RESOURCE = "https://agent.binance.com/mcp/agentic";
+const oauth = { verifier: null, state: null };
+
+const page = (status, text) => ({ status, raw: true, headers: { "content-type": "text/html" }, body:
+  `<!doctype html><body style="font-family:ui-monospace,Consolas,monospace;background:#0a0d10;color:#dce5ed;max-width:820px;margin:0 auto;padding:40px;line-height:1.6"><pre style="white-space:pre-wrap;font-size:13.5px">${String(text).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]))}</pre></body>` });
+
 const ROUTES = {
   "POST /v1/intent": async (body) => {
     const c = [...customers.values()].find((x) => x.api_key === body.api_key);
@@ -215,6 +229,75 @@ const ROUTES = {
   },
   "GET /": () => ({ status: 200, raw: true, headers: { "content-type": "text/html" }, body: readFileSync(new URL("../dashboard/index.html", import.meta.url)) }),
   "GET /onboard": () => ({ status: 200, raw: true, headers: { "content-type": "text/html" }, body: readFileSync(new URL("../dashboard/onboard.html", import.meta.url)) }),
+  "GET /oauth/client-metadata.json": () => ({ status: 200, body: {
+    client_id: CLIENT_META_URL,
+    client_name: "The Desk",
+    client_uri: BASE_URL,
+    redirect_uris: [REDIRECT_URI],
+    grant_types: ["authorization_code"],
+    response_types: ["code"],
+    token_endpoint_auth_method: "none",
+  } }),
+  "GET /oauth/start": () => {
+    const verifier = randomBytes(32).toString("base64url");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const state = randomBytes(8).toString("base64url");
+    oauth.verifier = verifier;
+    oauth.state = state;
+    const auth = new URL("https://accounts.binance.com/agentic-oauth/authorize");
+    auth.searchParams.set("response_type", "code");
+    auth.searchParams.set("client_id", CLIENT_META_URL);
+    auth.searchParams.set("redirect_uri", REDIRECT_URI);
+    auth.searchParams.set("code_challenge", challenge);
+    auth.searchParams.set("code_challenge_method", "S256");
+    auth.searchParams.set("state", state);
+    auth.searchParams.set("resource", MCP_RESOURCE);
+    return { status: 302, raw: true, headers: { location: auth.toString() } };
+  },
+  "GET /oauth/callback": async (_body, _key, _ip, q) => {
+    if (q.get("error")) return page(400, `authorization refused: ${q.get("error")}\n${q.get("error_description") ?? ""}\n\nstart again: ${BASE_URL}/oauth/start`);
+    if (!q.get("code") || q.get("state") !== oauth.state || !oauth.verifier)
+      return page(400, `state mismatch or missing code — start again: ${BASE_URL}/oauth/start`);
+    const tokRes = await fetch("https://accounts.binance.com/oauth-agentic/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: q.get("code"),
+        redirect_uri: REDIRECT_URI,
+        client_id: CLIENT_META_URL,
+        code_verifier: oauth.verifier,
+        resource: MCP_RESOURCE,
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    const tok = await tokRes.json().catch(() => ({}));
+    if (!tokRes.ok || !tok.access_token)
+      return page(400, `token exchange failed: HTTP ${tokRes.status}\n${JSON.stringify(tok).slice(0, 400)}\n\nstart again: ${BASE_URL}/oauth/start`);
+    setMcpToken(tok.access_token);
+    audit.append("MCP_CONNECTED", { via: "oauth_pkce", client: CLIENT_META_URL, token_type: tok.token_type ?? "bearer", expires_in: tok.expires_in ?? null });
+    broadcast();
+    let toolLines = "(enumeration failed — token is set; check the MCP adapter logs)";
+    try {
+      const tools = await listMcpTools(tok.access_token);
+      toolLines = tools.map((t) => `- ${t.name}: ${(t.description ?? "").split("\n")[0]}`).join("\n");
+      audit.append("MCP_TOOLS_ENUMERATED", { count: tools.length, tools: tools.map((t) => t.name) });
+    } catch (e) {
+      toolLines = `(enumeration failed: ${e.message})`;
+    }
+    return page(200,
+`THE DESK — Agent OS connected.
+
+Bearer token acquired via PKCE. The live adapter is armed — fills it executes now go
+through the Agent OS MCP server onto the dedicated sub-account.
+
+To survive a redeploy, set this as env BINANCE_MCP_TOKEN (keep it secret):
+${tok.access_token}
+
+Tools enumerated from the live server:
+
+${toolLines}`);
+  },
   "GET /v1/books": () => ({ status: 200, body: snapshot() }),
   // Self-serve onboarding: strangers compose inside the bounded vocabulary; validateProposal
   // refuses everything else, verbatim, on the audit chain. Paper is free — the graduation
@@ -286,7 +369,7 @@ createServer((req, res) => {
     const handler = routes[`${req.method} ${path}`];
     let out;
     try {
-      out = handler ? await handler(body, req.headers["x-api-key"], req.socket.remoteAddress) : { status: 404, body: { ok: false, error: "no such route" } };
+      out = handler ? await handler(body, req.headers["x-api-key"], req.socket.remoteAddress, new URL(req.url, "http://localhost").searchParams) : { status: 404, body: { ok: false, error: "no such route" } };
       res.writeHead(out.status, out.raw ? out.headers : { "content-type": "application/json" });
       res.end(out.raw ? out.body : JSON.stringify(out.body, null, 2));
     } catch (e) {

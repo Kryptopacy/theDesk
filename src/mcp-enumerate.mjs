@@ -1,10 +1,11 @@
 // One-shot connect-day tool: handshake with the Binance Agent OS MCP server, enumerate
 // the real tool list, and print the TOOL map to paste into src/mcp-broker.mjs.
-// Run: node src/mcp-enumerate.mjs   (after the account is connected — docs/CONNECT.md)
+// Run: node src/mcp-enumerate.mjs   (with BINANCE_MCP_TOKEN set from the desk's /oauth flow)
 const MCP_URL = process.env.BINANCE_MCP_URL ?? "https://agent.binance.com/mcp/agentic";
 
 const rpc = async (method, params, sessionId) => {
   const headers = { "content-type": "application/json", accept: "application/json, text/event-stream" };
+  if (process.env.BINANCE_MCP_TOKEN) headers.authorization = `Bearer ${process.env.BINANCE_MCP_TOKEN}`;
   if (sessionId) headers["mcp-session-id"] = sessionId;
   const res = await fetch(MCP_URL, {
     method: "POST",

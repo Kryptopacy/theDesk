@@ -8,7 +8,30 @@
 // TOOL NAMES BELOW ARE PLACEHOLDERS — enumerated from the live server on first connect
 // (tools/list). Update the TOOL map, then this adapter goes live.
 
-const MCP_URL = process.env.BINANCE_MCP_URL ?? "https://agent.binance.com/mcp/agentic";
+export const MCP_URL = process.env.BINANCE_MCP_URL ?? "https://agent.binance.com/mcp/agentic";
+
+// Bearer token from the OAuth flow (desk /oauth/start → callback). Settable at runtime so
+// the live desk picks it up without a restart; BINANCE_MCP_TOKEN env is the boot default.
+let mcpToken = process.env.BINANCE_MCP_TOKEN ?? null;
+export const setMcpToken = (t) => { mcpToken = t; };
+
+export async function listMcpTools(token) {
+  const auth = { authorization: `Bearer ${token}` };
+  const post = (method, params, sid) => fetch(MCP_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...auth, ...(sid ? { "mcp-session-id": sid } : {}) },
+    body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }),
+    signal: AbortSignal.timeout(20000),
+  }).then(async (r) => ({ r, sid: r.headers.get("mcp-session-id"), data: await r.text() }));
+  const init = await post("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "the-desk", version: "1.0.0" } });
+  if (!init.r.ok) throw new Error(`initialize HTTP ${init.r.status}`);
+  const initJson = JSON.parse(init.data.split("data:").filter(Boolean).pop() ?? init.data);
+  await post("notifications/initialized", {}, init.sid).catch(() => {});
+  const list = await post("tools/list", {}, init.sid);
+  if (!list.r.ok) throw new Error(`tools/list HTTP ${list.r.status}`);
+  const listJson = JSON.parse(list.data.split("data:").filter(Boolean).pop() ?? list.data);
+  return listJson.result?.tools ?? [];
+}
 
 const TOOL = {
   PRICE: "PLACEHOLDER_market_price",       // e.g. ticker/price for a symbol
@@ -25,9 +48,11 @@ export class McpBroker {
   }
 
   async #rpc(name, args) {
+    const headers = { "content-type": "application/json", accept: "application/json, text/event-stream" };
+    if (mcpToken) headers.authorization = `Bearer ${mcpToken}`;
     const res = await fetch(MCP_URL, {
       method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      headers,
       body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "tools/call", params: { name, arguments: args } }),
       signal: AbortSignal.timeout(15000),
     });
