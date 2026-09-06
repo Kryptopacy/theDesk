@@ -47,4 +47,8 @@ export class AuditLog {
     }
     return { ok: true, events: lines.length };
   }
+
+  summary() {
+    return { events: this.seq, head: String(this.prev).slice(0, 16) };
+  }
 }

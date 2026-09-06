@@ -29,18 +29,25 @@ export class MockBroker {
   }
 
   marketOrder(symbol, side, quoteQty) {
-    if (quoteQty < MIN_NOTIONAL_USDT) return { ok: false, error: `below min notional ${MIN_NOTIONAL_USDT} USDT` };
+    if (!(symbol in this.prices)) this.prices[symbol] = SEED_PRICES[symbol] ?? 100; // an order can be the first touch of a symbol
     const price = this.prices[symbol];
     const fee = quoteQty * this.feeRate;
     if (side === "BUY") {
+      if (quoteQty < MIN_NOTIONAL_USDT) return { ok: false, error: `below min notional ${MIN_NOTIONAL_USDT} USDT` };
       const cost = quoteQty + fee;
       if (cost > this.balances.USDT) return { ok: false, error: `insufficient USDT: need ${cost.toFixed(2)}, have ${this.balances.USDT.toFixed(2)}` };
       this.balances.USDT -= cost;
       this.baseBalances[symbol] = (this.baseBalances[symbol] ?? 0) + quoteQty / price;
     } else {
-      const baseQty = quoteQty / price;
-      if (baseQty > (this.baseBalances[symbol] ?? 0)) return { ok: false, error: `insufficient ${symbol}` };
-      this.baseBalances[symbol] -= baseQty;
+      let baseQty = quoteQty / price;
+      const held = this.baseBalances[symbol] ?? 0;
+      const fullClose = held > 0 && baseQty >= held * 0.99; // closing the position is de-risking — exempt from the min-notional gate
+      if (!fullClose && quoteQty < MIN_NOTIONAL_USDT) return { ok: false, error: `below min notional ${MIN_NOTIONAL_USDT} USDT` };
+      if (baseQty > held) {
+        if (baseQty - held <= held * 0.01) baseQty = held; // dust tolerance: close what we hold
+        else return { ok: false, error: `insufficient ${symbol}` };
+      }
+      this.baseBalances[symbol] = held - baseQty;
       this.balances.USDT += quoteQty - fee;
     }
     return { ok: true, symbol, side, quoteQty, price, fee, ts: new Date().toISOString() };

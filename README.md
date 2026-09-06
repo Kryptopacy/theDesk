@@ -18,7 +18,7 @@ The Desk is an execution & risk layer: customers pipe signals in — a plain-Eng
 ## The risk stack (active on every intent)
 
 1. **Order gate** — whitelist, per-order cap, exchange min notional, BUY/SELL allowlist, revoked-customer check
-2. **Position guard** — customer stop-loss / take-profit plus an **immutable desk drawdown floor** (tighten-only); force-exits are logged as desk-initiated `RISK_EXIT`. Perp envelopes: the floor is taken at half the estimated liquidation distance — the desk always exits before the liquidation engine
+2. **Position guard** — customer stop-loss / take-profit plus an **immutable desk drawdown floor** (tighten-only). Open positions are re-priced and guarded on a 10s sweep, not just when an intent arrives; force-exits are logged as desk-initiated `RISK_EXIT` and never blocked by caps or min-notional (closing a position is de-risking). Perp envelopes: the floor is taken at half the estimated liquidation distance — the desk always exits before the liquidation engine
 3. **Day guard** — daily loss cap halts the envelope until the next UTC day
 4. **The plug** — founder revocation binds mid-flight
 
@@ -53,7 +53,7 @@ signals:  plain English ──▶ compiler ──▶ proposal ──▶ validate
 - `src/envelope.mjs`, `riskguard.mjs` — the risk gate and position guard (pure functions, shared by every input path)
 - `src/conditions.mjs`, `indicators.mjs`, `signals.mjs` — rule language + engine
 - `src/mandate.mjs`, `executor.mjs`, `audit.mjs` — mandate contract, governed executor, hash-chained audit log
-- `src/broker.mjs` (mock) · `paperbroker.mjs` (live prices) · `mcp-broker.mjs` (Agent OS adapter) · `backtest.mjs` (walk-forward)
+- `src/broker.mjs` (mock) · `paperbroker.mjs` (live prices) · `mcp-broker.mjs` (Agent OS adapter) · `mcp-enumerate.mjs` (connect-day: enumerate the real MCP tool list, print the TOOL map) · `backtest.mjs` (walk-forward)
 - `dashboard/index.html` — public books page
 - `docs/` — [MANDATE_SPEC](docs/MANDATE_SPEC.md) · [PLAN](docs/PLAN.md) · [DEMO_SCRIPT](docs/DEMO_SCRIPT.md) · [CONNECT](docs/CONNECT.md) · [COMPILER_PROMPT](docs/COMPILER_PROMPT.md) · [letter-01](docs/letter-01.md)
 
@@ -64,6 +64,8 @@ node src/desk.mjs          # desk on :8787 — dashboard at http://localhost:878
 node src/backtest.mjs      # walk-forward suite on live data
 node src/signals-demo.mjs  # indicator mandate, live klines
 node src/main.mjs          # governed-loop demo
+
+DESK_PUBLIC=1 PORT=8899 node src/desk.mjs   # public read-only books — GET-only, tunnel or deploy this
 ```
 
 ## Submission

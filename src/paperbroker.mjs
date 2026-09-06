@@ -42,7 +42,6 @@ export class PaperBroker {
   }
 
   async marketOrder(symbol, side, quoteQty) {
-    if (quoteQty < 5) return { ok: false, error: `below min notional 5 USDT` };
     let mid;
     try { mid = await this.#price(symbol); } catch (e) { return { ok: false, error: e.message }; }
     const slip = this.slippageBps / 10_000;
@@ -50,6 +49,7 @@ export class PaperBroker {
     const fee = quoteQty * this.feeRate;
     let filledQuoteQty = quoteQty;
     if (side === "BUY") {
+      if (quoteQty < 5) return { ok: false, error: `below min notional 5 USDT` };
       const cost = quoteQty + fee;
       if (cost > this.balances.USDT) return { ok: false, error: `insufficient USDT: need ${cost.toFixed(2)}, have ${this.balances.USDT.toFixed(2)}` };
       this.balances.USDT -= cost;
@@ -57,6 +57,8 @@ export class PaperBroker {
     } else {
       let baseQty = quoteQty / price;
       const held = this.baseBalances[symbol] ?? 0;
+      const fullClose = held > 0 && baseQty >= held * 0.99; // closing the position is de-risking — exempt from the min-notional gate
+      if (!fullClose && quoteQty < 5) return { ok: false, error: `below min notional 5 USDT` };
       if (baseQty > held) {
         if (baseQty - held <= held * 0.01) baseQty = held; // dust tolerance: close what we hold
         else return { ok: false, error: `insufficient ${symbol}` };
