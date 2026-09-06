@@ -73,6 +73,7 @@ setInterval(broadcast, 20000).unref();
 const customers = new Map();
 
 export function addCustomer({ name, api_key, symbols, max_order_notional, daily_loss_cap, fee_bps = 25, float = 10, mode = "paper", expires_in_days = 7, stop_loss_pct = null, take_profit_pct = null, max_drawdown_pct = null, broker_opts = {} }) {
+  name = String(name ?? "unnamed").replace(/[<>]/g, "").trim().slice(0, 24); // community names render on the books
   const c = {
     name, api_key, active: true, mode,
     paperExpiresAt: mode === "paper" ? Date.now() + expires_in_days * 86_400_000 : null,
@@ -181,7 +182,17 @@ const ROUTES = {
     if (!c) return { status: 401, body: { ok: false, error: "unknown api key" } };
     if (c.paperExpiresAt && Date.now() > c.paperExpiresAt)
       return { status: 402, body: { ok: false, error: "paper envelope expired — graduate to a live envelope to resume (activation fee applies)" } };
-    const intent = { symbol: body.symbol, side: body.side, notional: Number(body.notional), note: body.note ?? null };
+    // Untrusted-input hygiene: the note is community text rendered on the public books —
+    // strip control characters and angle brackets, cap length at the source.
+    const note = typeof body.note === "string"
+      ? body.note.replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 80) || null
+      : null;
+    const intent = { symbol: String(body.symbol ?? "").toUpperCase(), side: body.side, notional: Number(body.notional), note };
+    // Strangers can also be too loud: frequency is risk. One intent per envelope per 2s —
+    // rate-limited attempts return 429 and deliberately stay off the public feed.
+    if (c.lastIntentAt && Date.now() - c.lastIntentAt < 2000)
+      return { status: 429, body: { ok: false, refused_by: "risk_engine", detail: "envelope rate limit — one intent per 2s" } };
+    c.lastIntentAt = Date.now();
     const v = checkIntent(c, intent);
     if (v.ok && v.clamped) c.clamps += 1;
     return v.ok ? execute(c, intent, v.notional, v.clamped) : refuse(c, intent, v);

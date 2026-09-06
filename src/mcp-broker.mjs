@@ -41,7 +41,10 @@ export class McpBroker {
   }
 
   async marketOrder(symbol, side, quoteQty) {
-    if (quoteQty < 5) return { ok: false, error: "below min notional 5 USDT" };
+    if (side.toUpperCase() === "BUY" && quoteQty < 5) return { ok: false, error: "below min notional 5 USDT" };
+    // Full-close sells skip the local min-notional gate — de-risking is never blocked (mirrors
+    // Mock/Paper). Binance applies its own NOTIONAL filter server-side; a full-balance sell is
+    // the exchange's case to allow or refuse, and the audit records which.
     try {
       const r = await this.#rpc(TOOL.ORDER, { symbol, side: side.toUpperCase(), quoteOrderQty: quoteQty });
       const c = r?.result?.content?.[0]?.text;

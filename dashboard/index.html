@@ -262,12 +262,12 @@ function renderEnvelope(c) {
   return `
   <div class="env">
     <div class="head">
-      <span class="name">${c.name}</span>
+      <span class="name">${esc(c.name)}</span>
       <span class="pill ${c.active ? c.mode : "dead"}">${c.active ? c.mode : "revoked"}</span>
       ${exp && c.active ? `<span class="spec">${days}d left</span>` : ""}
       <span class="rev num"><span class="k">rev</span>${fmt(c.revenue, 4)}</span>
     </div>
-    <div class="chips">${c.envelope.symbols.map(s => `<span class="sym">${s}</span>`).join("")}</div>
+    <div class="chips">${c.envelope.symbols.map(s => `<span class="sym">${esc(s)}</span>`).join("")}</div>
     <div class="spec">cap <b class="num">${c.envelope.max_order_notional}</b> per order, loss <b class="num">${c.envelope.daily_loss_cap}</b> per day, floor <b class="num">${c.envelope.max_drawdown_pct != null ? "-" + c.envelope.max_drawdown_pct + "%" : "—"}</b> immutable</div>
     ${meters(c)}
     <div class="counts">
@@ -278,17 +278,19 @@ function renderEnvelope(c) {
   </div>`;
 }
 
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+
 function renderRow(r, isNew) {
   const clampTag = r.clamped ? `<span class="tag-clamp">CLAMPED</span>` : "";
   const what = r.outcome === "FILLED"
-    ? `${r.side.toUpperCase()} ${r.symbol} ${fmt(r.notional)}${clampTag}<span class="detail">fee ${fmt(r.fee, 4)} USDT${r.note ? " - " + r.note : ""}</span>`
-    : `${(r.side || "?").toUpperCase()} ${r.symbol ?? ""} ${r.notional ? fmt(r.notional) : ""}<span class="detail">${r.detail ?? ""}</span>`;
+    ? `${esc(r.side.toUpperCase())} ${esc(r.symbol)} ${fmt(r.notional)}${clampTag}<span class="detail">fee ${fmt(r.fee, 4)} USDT${r.note ? " - " + esc(r.note) : ""}</span>`
+    : `${esc((r.side || "?").toUpperCase())} ${esc(r.symbol ?? "")} ${r.notional ? fmt(r.notional) : ""}<span class="detail">${esc(r.detail ?? "")}</span>`;
   return `
   <div class="row${isNew ? " new" : ""}">
     <span class="t num">${(r.ts || "").slice(11, 19)}</span>
-    <span class="who">${r.customer}<span class="m">${r.mode}</span></span>
+    <span class="who">${esc(r.customer)}<span class="m">${esc(r.mode)}</span></span>
     <span class="what">${what}</span>
-    <span class="badge ${r.outcome}">${r.outcome}</span>
+    <span class="badge ${esc(r.outcome)}">${esc(r.outcome)}</span>
   </div>`;
 }
 
