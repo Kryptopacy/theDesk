@@ -11,7 +11,9 @@
 // Run: node src/desk.mjs  (then curl, see docs/PLAN.md)
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { AuditLog } from "./audit.mjs";
+import { validateProposal } from "./amendment.mjs";
 import { MockBroker } from "./broker.mjs";
 import { PaperBroker } from "./paperbroker.mjs";
 import { checkIntent } from "./envelope.mjs";
@@ -176,6 +178,20 @@ setInterval(async () => {
   }
 }, GUARD_SWEEP_MS).unref();
 
+// Proposal intake throttle: per-address 6/hour, global 100/UTC-day. The books are public —
+// keep them clean without ever blocking a first-time composer.
+const proposeHits = new Map();
+let proposeDay = { day: new Date().toISOString().slice(0, 10), n: 0 };
+function proposeAllowed(ip) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (proposeDay.day !== today) proposeDay = { day: today, n: 0 };
+  if (++proposeDay.n > 100) return false;
+  const hits = (proposeHits.get(ip) ?? []).filter((t) => Date.now() - t < 3_600_000);
+  hits.push(Date.now());
+  proposeHits.set(ip, hits);
+  return hits.length <= 6;
+}
+
 const ROUTES = {
   "POST /v1/intent": async (body) => {
     const c = [...customers.values()].find((x) => x.api_key === body.api_key);
@@ -198,7 +214,29 @@ const ROUTES = {
     return v.ok ? execute(c, intent, v.notional, v.clamped) : refuse(c, intent, v);
   },
   "GET /": () => ({ status: 200, raw: true, headers: { "content-type": "text/html" }, body: readFileSync(new URL("../dashboard/index.html", import.meta.url)) }),
+  "GET /onboard": () => ({ status: 200, raw: true, headers: { "content-type": "text/html" }, body: readFileSync(new URL("../dashboard/onboard.html", import.meta.url)) }),
   "GET /v1/books": () => ({ status: 200, body: snapshot() }),
+  // Self-serve onboarding: strangers compose inside the bounded vocabulary; validateProposal
+  // refuses everything else, verbatim, on the audit chain. Paper is free — the graduation
+  // (live envelope, per-fill fees) is the founder's yes, which is also the revenue gate.
+  "POST /v1/propose": (body, _key, ip) => {
+    if (!proposeAllowed(ip)) return { status: 429, body: { ok: false, refused_by: "compiler", detail: "too many proposals from this address — try again later" } };
+    const name = String(body.name ?? "anon").replace(/[<>]/g, "").trim().slice(0, 24) || "anon";
+    const plain = typeof body.plain === "string" ? body.plain.replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 400) || null : null;
+    const v = validateProposal({ proposer: name, source_reply: plain, symbols: body.symbols, rules: body.rules }, { maxOrderNotional: 5 });
+    if (!v.ok) {
+      audit.append("PROPOSAL_REFUSED", { name, plain, violations: v.violations });
+      broadcast();
+      return { status: 422, body: { ok: false, refused_by: "compiler", violations: v.violations } };
+    }
+    const api_key = "pub-" + randomUUID().replaceAll("-", "").slice(0, 10);
+    const c = addCustomer({ name, api_key, symbols: v.symbols, max_order_notional: 5, daily_loss_cap: 2, float: 10, mode: "paper", expires_in_days: 7, max_drawdown_pct: 10 });
+    c.mandate = v.normalized;
+    c.plain = plain;
+    audit.append("ENVELOPE_OPENED", { customer: name, plain, mandate: v.normalized, notes: v.notes });
+    broadcast();
+    return { status: 201, body: { ok: true, customer: name, api_key, envelope: c.envelope, mandate: v.normalized, notes: v.notes } };
+  },
   "POST /v1/customers": (body, key) => {
     if (key !== FOUNDER_KEY) return { status: 403, body: { ok: false, error: "founder key required" } };
     const c = addCustomer(body);
@@ -216,10 +254,15 @@ const ROUTES = {
   },
 };
 
-// Public books mode: DESK_PUBLIC=1 exposes the dashboard and GET endpoints only — no
-// intents, no onboarding, no revocations. This is the mode that gets tunneled or deployed.
+// Public mode: DESK_PUBLIC=1 serves the books, the onboarding counter and the intent API to
+// the world — that's the product surface (TradingView webhooks need a public URL). Founder
+// routes stay local unless a strong founder key (≥16 chars) is set for the public bind.
+const PUBLIC_ROUTES = ["POST /v1/propose", "POST /v1/intent"];
+const FOUNDER_ROUTES = ["POST /v1/customers", "POST /v1/revoke"];
+const strongFounderKey = (process.env.DESK_FOUNDER_KEY ?? "").length >= 16;
 const routes = process.env.DESK_PUBLIC === "1"
-  ? Object.fromEntries(Object.entries(ROUTES).filter(([k]) => k.startsWith("GET")))
+  ? Object.fromEntries(Object.entries(ROUTES).filter(([k]) =>
+      k.startsWith("GET") || PUBLIC_ROUTES.includes(k) || (strongFounderKey && FOUNDER_ROUTES.includes(k))))
   : ROUTES;
 
 addCustomer({ name: "house-fund", api_key: "house-demo-key", symbols: ["BTCUSDT"], max_order_notional: 5, daily_loss_cap: 2, fee_bps: 0, float: 10, mode: "live", take_profit_pct: 15, max_drawdown_pct: 10 });
@@ -243,7 +286,7 @@ createServer((req, res) => {
     const handler = routes[`${req.method} ${path}`];
     let out;
     try {
-      out = handler ? await handler(body, req.headers["x-api-key"]) : { status: 404, body: { ok: false, error: "no such route" } };
+      out = handler ? await handler(body, req.headers["x-api-key"], req.socket.remoteAddress) : { status: 404, body: { ok: false, error: "no such route" } };
       res.writeHead(out.status, out.raw ? out.headers : { "content-type": "application/json" });
       res.end(out.raw ? out.body : JSON.stringify(out.body, null, 2));
     } catch (e) {

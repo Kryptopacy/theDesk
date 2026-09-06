@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Open a risk envelope at The Desk: compose a mandate from the bounded vocabulary, paper-trade it free, graduate to live.">
+<title>The Desk, open an envelope</title>
+<style>
+  :root{
+    --bg:#0a0d10; --panel:#10151b; --panel2:#0d1217; --line:#1d252e; --line2:#161d25;
+    --text:#dce5ed; --dim:#7d8b99; --faint:#54626f;
+    --green:#34d17d; --green-bg:#0f2419;
+    --red:#ef6a5a; --red-bg:#2a1412;
+    --amber:#d9a53f; --amber-bg:#271e0e;
+    --accent:#56c8ff;
+    --r:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);
+    font:14px/1.55 ui-monospace,"Cascadia Mono","JetBrains Mono",Consolas,"SF Mono",monospace;
+    max-width:880px;margin:0 auto;padding:22px 20px 60px}
+  .num{font-variant-numeric:tabular-nums}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  header{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line)}
+  .brand{font-size:21px;font-weight:700;letter-spacing:.04em}
+  .tagline{color:var(--dim);font-size:12px;flex:1;min-width:240px}
+  section{padding:22px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+  .sub{font-size:12px;color:var(--faint);margin-bottom:14px}
+  label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:10px 0 4px}
+  input[type=text],input[type=number],textarea,select{
+    background:var(--panel2);border:1px solid var(--line);border-radius:4px;color:var(--text);
+    font:inherit;font-size:13px;padding:7px 9px;width:100%}
+  textarea{min-height:74px;resize:vertical}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .row > *{flex:0 0 auto}
+  .syms{display:flex;gap:6px;flex-wrap:wrap}
+  .syms label{display:inline-flex;margin:0;cursor:pointer}
+  .syms input{display:none}
+  .syms span{font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:3px 9px;color:var(--dim)}
+  .syms input:checked + span{color:var(--text);border-color:var(--accent);background:#0e1a24}
+  .rule{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
+  .rule .head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .rule select,.rule input{width:auto;min-width:110px}
+  .cond{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:12.5px}
+  .cond select,.cond input{min-width:0;font-size:12.5px;padding:5px 7px}
+  .cond .w-ind{width:130px}.cond .w-op{width:120px}.cond .w-val{width:90px}.cond .w-fb{width:120px}
+  .comb{margin-top:8px;display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--dim)}
+  .comb select{width:auto}
+  button{background:#0e1a24;border:1px solid #1e3a4d;color:var(--accent);font:inherit;font-size:12.5px;
+    border-radius:4px;padding:7px 14px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:#0f2419;border-color:#1e3a2b;color:var(--green)}
+  button.ghost{background:none;border:1px dashed var(--line);color:var(--dim)}
+  button.danger{background:none;border-color:#3a201d;color:var(--red)}
+  .verdict{margin-top:14px;border-radius:var(--r);padding:12px 14px;font-size:12.5px;display:none}
+  .verdict.bad{display:block;background:var(--red-bg);border:1px solid #3a201d;color:var(--red)}
+  .verdict.good{display:block;background:var(--green-bg);border:1px solid #1e3a2b;color:var(--green)}
+  .verdict .v-line{margin:3px 0}
+  .keybox{font-size:15px;font-weight:700;letter-spacing:.04em;color:var(--green);margin:6px 0}
+  .envcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin:12px 0;font-size:12.5px;color:var(--dim)}
+  .envcard b{color:var(--text)}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:9px 11px;font-size:11.5px;
+    overflow-x:auto;white-space:pre-wrap;word-break:break-all;color:var(--dim);margin:8px 0}
+  .muted{color:var(--faint);font-size:11.5px}
+  .steps{display:flex;gap:10px;font-size:11px;color:var(--faint);letter-spacing:.1em;text-transform:uppercase}
+  .steps .n{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">THE DESK<span style="color:var(--accent)">_</span></div>
+  <div class="tagline">Compose a mandate. The desk holds the discipline; you keep the strategy. Paper is free for 7 days — graduation to live is the founder's yes.</div>
+  <a class="tagline" href="/" style="flex:0 0 auto;min-width:0">← public books</a>
+</header>
+
+<section>
+  <div class="steps"><span class="n">01</span> say it &nbsp;·&nbsp; <span class="n">02</span> compose the mandate &nbsp;·&nbsp; <span class="n">03</span> get the contract</div>
+  <h2 style="margin-top:18px">Say it in plain English (kept verbatim on the audit chain)</h2>
+  <p class="sub">Whatever you write here is attached to your mandate as its policy text. The structured part below is what actually executes — the vocabulary is bounded, so nobody, including you, can submit code.</p>
+  <label for="name">your handle</label>
+  <input type="text" id="name" maxlength="24" placeholder="satoshi_funded">
+  <label for="plain">your strategy, your words</label>
+  <textarea id="plain" maxlength="400" placeholder="buy the dip when RSI is oversold on BTC and ETH, take profit into strength, never more than 5 USDT at a time"></textarea>
+</section>
+
+<section>
+  <h2>Compose the mandate</h2>
+  <p class="sub">Pick 1–3 symbols, then build rules from the indicator vocabulary. Unknown anything gets refused — on the record.</p>
+
+  <label>symbols (max 3)</label>
+  <div class="syms" id="syms"></div>
+
+  <label>rules</label>
+  <div id="rules"></div>
+  <button class="ghost" onclick="addRule()">+ add rule</button>
+
+  <div style="margin-top:18px"><button class="primary" onclick="submitProposal()">submit → validate → contract</button></div>
+  <div class="verdict" id="verdict"></div>
+</section>
+
+<section id="contract" style="display:none">
+  <h2>Your contract</h2>
+  <div id="contract-body"></div>
+  <h2 style="margin-top:22px">Fire a test signal</h2>
+  <p class="sub">Paper fills at real prices with adverse slippage. Watch it land on the <a href="/">public books</a>.</p>
+  <div class="row">
+    <select id="t-sym" style="width:140px"></select>
+    <select id="t-side" style="width:100px"><option value="buy">BUY</option><option value="sell">SELL</option></select>
+    <input type="number" id="t-notional" value="5" min="5" step="0.5" style="width:90px">
+    <button onclick="fireIntent()">send intent</button>
+  </div>
+  <pre id="t-out" style="display:none"></pre>
+</section>
+
+<script>
+const UNIVERSE = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","TRXUSDT","LINKUSDT","AVAXUSDT","TONUSDT","SHIBUSDT","DOTUSDT","NEARUSDT","APTUSDT","PEPEUSDT","LTCUSDT","SUIUSDT","ARBUSDT","OPUSDT"];
+const INDICATORS = ["price","rsi","sma","ema","bb_pct","macd_hist","stoch","atr_pct","volume_ratio","roc","breakout_high","breakout_low"];
+const OPS = ["above","below","crosses_above","crosses_below"];
+const KINDS = { signal: "signal rule (indicator conditions)", recurring_buy: "recurring buy (DCA)", dip_buy: "dip buy (−% from recent high)", take_profit_full: "take profit full (+% from entry)" };
+
+let API_KEY = null;
+
+const el = (id) => document.getElementById(id);
+const opt = (v, label = v) => `<option value="${v}">${label}</option>`;
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+el("syms").innerHTML = UNIVERSE.map((s) =>
+  `<label><input type="checkbox" value="${s}" onchange="capSymbols()"><span>${s}</span></label>`).join("");
+function capSymbols() {
+  const on = [...el("syms").querySelectorAll("input:checked")];
+  if (on.length >= 3) el("syms").querySelectorAll("input:not(:checked)").forEach((i) => (i.disabled = true));
+  else el("syms").querySelectorAll("input").forEach((i) => (i.disabled = false));
+}
+
+const indSelect = (cls) => `<select class="${cls}">${INDICATORS.map((i) => opt(i)).join("")}</select>`;
+const rightCell = () => `
+  <select class="w-op-r rmode" onchange="rightMode(this)">
+    <option value="const">const</option><option value="ind">indicator</option>
+  </select>
+  <input type="number" class="w-val rval" step="any" placeholder="value">`;
+
+function condRow() {
+  const d = document.createElement("div");
+  d.className = "cond";
+  d.innerHTML = `${indSelect("w-ind lind")}<select class="w-op">${OPS.map(opt).join("")}</select>${rightCell()}
+    <input type="number" class="w-fb" min="1" max="10" placeholder="for N bars">`;
+  return d;
+}
+
+function rightMode(sel) {
+  const c = sel.closest(".cond");
+  if (sel.value === "ind") {
+    c.querySelector(".rval").outerHTML = indSelect("w-val rind");
+  } else {
+    const r = c.querySelector(".rind");
+    r.outerHTML = `<input type="number" class="w-val rval" step="any" placeholder="value">`;
+  }
+}
+
+function addRule() {
+  const d = document.createElement("div");
+  d.className = "rule";
+  d.innerHTML = `
+    <div class="head">
+      <select class="kind" onchange="kindChanged(this)">${Object.entries(KINDS).map(([k, v]) => opt(k, v)).join("")}</select>
+      <select class="action"><option value="buy">BUY</option><option value="sell">SELL</option></select>
+      <button class="danger" style="margin-left:auto" onclick="this.closest('.rule').remove()">remove</button>
+    </div>
+    <div class="body"></div>`;
+  el("rules").appendChild(d);
+  kindChanged(d.querySelector(".kind"));
+}
+
+function kindChanged(sel) {
+  const rule = sel.closest(".rule"), body = rule.querySelector(".body"), kind = sel.value;
+  if (kind === "signal") {
+    const conds = [...body.querySelectorAll(".cond")];
+    body.innerHTML = "";
+    conds.forEach((c) => body.appendChild(c));
+    if (!body.querySelector(".cond")) body.appendChild(condRow());
+    const comb = document.createElement("div");
+    comb.className = "comb";
+    comb.innerHTML = `combine: <select class="w-comb"><option value="all">all (confluence)</option><option value="any">any</option><option value="at_least">at_least k</option></select>
+      <input type="number" class="w-count" min="1" value="2" style="width:70px" disabled>
+      <button class="ghost" onclick="addCond(this)">+ condition</button>`;
+    body.appendChild(comb);
+    comb.querySelector(".w-comb").onchange = (e) => (comb.querySelector(".w-count").disabled = e.target.value !== "at_least");
+  } else if (kind === "recurring_buy") {
+    body.innerHTML = `<div class="cond"><span class="muted">buy</span><input type="number" class="w-amt" value="5" min="1" step="0.5" style="width:90px"><span class="muted">USDT quote, clamped to your cap anyway</span></div>`;
+  } else {
+    body.innerHTML = `<div class="cond"><span class="muted">trigger at</span><input type="number" class="w-pct" value="${kind === "dip_buy" ? -5 : 10}" step="any" style="width:90px"><span class="muted">% ${kind === "dip_buy" ? "below the 20-bar high" : "above entry"}</span></div>`;
+  }
+}
+function addCond(btn) { btn.closest(".comb").before(condRow()); }
+
+function collectConditions(rule) {
+  return [...rule.querySelectorAll(".cond")].map((c) => {
+    const rightInd = c.querySelector(".rind");
+    const cond = {
+      left: { indicator: c.querySelector(".lind").value },
+      op: c.querySelector(".w-op").value,
+      right: rightInd ? { indicator: rightInd.value } : { const: Number(c.querySelector(".rval").value) },
+    };
+    const fb = Number(c.querySelector(".w-fb").value);
+    if (fb >= 1) cond.for_bars = fb;
+    return cond;
+  });
+}
+
+function collectProposal() {
+  const symbols = [...el("syms").querySelectorAll("input:checked")].map((i) => i.value);
+  const rules = [...el("rules").querySelectorAll(".rule")].map((r) => {
+    const kind = r.querySelector(".kind").value;
+    if (kind !== "signal") return { kind, ...(kind === "recurring_buy"
+      ? { quote_amount_usdt: Number(r.querySelector(".w-amt").value) }
+      : { trigger: { pct: Number(r.querySelector(".w-pct").value) } }) };
+    const conds = collectConditions(r);
+    const comb = r.querySelector(".w-comb").value;
+    const trigger = comb === "all" && conds.length === 1 ? conds[0]
+      : { op: comb, ...(comb === "at_least" ? { count: Number(r.querySelector(".w-count").value) } : {}), conditions: conds };
+    return { kind, action: r.querySelector(".action").value, trigger };
+  });
+  return { name: el("name").value.trim(), plain: el("plain").value.trim(), symbols, rules };
+}
+
+async function submitProposal() {
+  const v = el("verdict");
+  v.className = "verdict"; v.style.display = "block"; v.textContent = "validating…";
+  try {
+    const res = await fetch("/v1/propose", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(collectProposal()) });
+    const out = await res.json();
+    if (!out.ok) {
+      v.className = "verdict bad";
+      v.innerHTML = `<b>refused by the validator</b> — quoted verbatim, on the record:` +
+        out.violations.map((x) => `<div class="v-line">[${esc(x.clause)}] ${esc(x.detail)}</div>`).join("");
+      return;
+    }
+    v.className = "verdict good";
+    v.innerHTML = `<div class="v-line">mandate accepted${out.notes?.length ? " — " + out.notes.map(esc).join("; ") : ""}. envelope is live on paper.</div>`;
+    API_KEY = out.api_key;
+    el("t-sym").innerHTML = out.envelope.symbols.map(opt).join("");
+    el("contract").style.display = "block";
+    el("contract").scrollIntoView({ behavior: "smooth" });
+    el("contract-body").innerHTML = `
+      <div class="envcard">
+        customer <b>${esc(out.customer)}</b> · key <b class="keybox">${esc(out.api_key)}</b><br>
+        whitelist <b>${out.envelope.symbols.map(esc).join(", ")}</b> ·
+        cap <b>${out.envelope.max_order_notional} USDT</b>/order ·
+        daily loss <b>${out.envelope.daily_loss_cap} USDT</b> ·
+        floor <b>−${out.envelope.max_drawdown_pct}% immutable</b> ·
+        mode <b>paper (free, 7 days)</b><br>
+        <span class="muted">graduation to live = founder's yes. the contract, not the crowd, holds the risk.</span>
+      </div>
+      <pre>curl -X POST ${location.origin}/v1/intent -H "content-type: application/json" \\
+  -d '{"api_key":"${esc(out.api_key)}","symbol":"${out.envelope.symbols[0]}","side":"buy","notional":5}'</pre>`;
+  } catch (e) {
+    v.className = "verdict bad"; v.textContent = "desk unreachable: " + e.message;
+  }
+}
+
+async function fireIntent() {
+  const out = el("t-out");
+  out.style.display = "block"; out.textContent = "sending…";
+  const res = await fetch("/v1/intent", { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ api_key: API_KEY, symbol: el("t-sym").value, side: el("t-side").value, notional: Number(el("t-notional").value) }) });
+  const body = await res.json();
+  out.textContent = JSON.stringify(body, null, 2);
+}
+
+addRule();
+</script>
+</body>
+</html>

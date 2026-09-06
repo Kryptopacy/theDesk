@@ -47,6 +47,8 @@ signals:  plain English ──▶ compiler ──▶ proposal ──▶ validate
 
 **Agent OS components:** MCP server (`https://agent.binance.com/mcp/agentic` — Spot / Futures / Convert, market data, account), dedicated sub-account, granular permissions + killswitch. Perp execution unlocks at tool enumeration; the risk model is already instrument-agnostic (funding as a cost line and an indicator condition; isolated margin; exposure caps).
 
+**Self-serve:** composition happens on the front end against the same validator the founder uses — strangers compose, they never submit code. Paper envelopes are issued instantly (free, 7-day box); live envelopes are the graduation gate. Public mode (`DESK_PUBLIC=1`) exposes books + `/onboard` + the intent API, strips founder routes unless a strong founder key is set, and throttles proposals (6/hour/address, 100/day).
+
 ## Repo layout
 
 - `src/desk.mjs` — the desk: HTTP API, envelopes, fee meter, public books (`GET /` = dashboard)
@@ -54,7 +56,7 @@ signals:  plain English ──▶ compiler ──▶ proposal ──▶ validate
 - `src/conditions.mjs`, `indicators.mjs`, `signals.mjs` — rule language + engine
 - `src/mandate.mjs`, `executor.mjs`, `audit.mjs` — mandate contract, governed executor, hash-chained audit log
 - `src/broker.mjs` (mock) · `paperbroker.mjs` (live prices) · `mcp-broker.mjs` (Agent OS adapter) · `mcp-enumerate.mjs` (connect-day: enumerate the real MCP tool list, print the TOOL map) · `backtest.mjs` (walk-forward)
-- `dashboard/index.html` — public books page
+- `dashboard/index.html` — public books page · `dashboard/onboard.html` — the counter (`/onboard`): strangers compose a mandate from the bounded vocabulary and get a paper envelope instantly; graduation to live is the founder's yes. Refused proposals land on the audit chain, quoted verbatim.
 - `docs/` — [MANDATE_SPEC](docs/MANDATE_SPEC.md) · [PLAN](docs/PLAN.md) · [DEMO_SCRIPT](docs/DEMO_SCRIPT.md) · [CONNECT](docs/CONNECT.md) · [COMPILER_PROMPT](docs/COMPILER_PROMPT.md) · [letter-01](docs/letter-01.md)
 
 ## Try it
