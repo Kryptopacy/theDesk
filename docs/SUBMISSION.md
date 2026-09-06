@@ -21,7 +21,7 @@ Deadline: **2026-09-08 23:59 UTC**. Do the mechanics early — they're disqualif
 > Everyone demos agents that trade. The missing layer is an agent that refuses, clamps,
 > and gets fired between its thought and its trade. That's the product.
 >
-> Built on Binance Agent OS (MCP). GitHub: https://github.com/Kryptopacy/theDesk · Live books: [link — Render URL or tunnel] · [trailer]
+> Built on Binance Agent OS (MCP). GitHub: https://github.com/Kryptopacy/theDesk · Live books: https://thedesk-21bh.onrender.com · [trailer]
 
 ## What the judges see, in order (60-second skim)
 
@@ -30,11 +30,13 @@ Deadline: **2026-09-08 23:59 UTC**. Do the mechanics early — they're disqualif
 3. Live books URL (public read-only instance below) — not a localhost claim.
 4. Code: `desk.mjs` (routes), `riskguard.mjs` + the 10s guard sweep, `audit.mjs` (hash chain).
 
-## Public read-only books (while judging is live)
+## Public books (canonical: Render)
+
+Deployed: **https://thedesk-21bh.onrender.com** (free tier — UptimeRobot 5-min ping keeps it warm; books reset on deploy, reseeding cleanly). Local fallback while developing:
 
 ```bash
-DESK_PUBLIC=1 PORT=8899 DESK_AUDIT=audit/desk-public.jsonl node src/desk.mjs   # read-only books
-./.tools/cloudflared.exe tunnel --url http://localhost:8899                     # quick tunnel, no account
+DESK_PUBLIC=1 PORT=8899 DESK_AUDIT=audit/desk-public.jsonl node src/desk.mjs   # read-only books + counter
+./.tools/cloudflared.exe tunnel --url http://localhost:8899                     # quick tunnel, URL rotates
 ```
 
 `DESK_PUBLIC=1` strips every POST route (no intents, no onboarding, no revocations).

@@ -10,12 +10,12 @@ An AI agent now runs a trading desk on Binance — real money, $10 of it, entire
 
 Here's the deal:
 
-· You send it a strategy in plain English (reply to this thread — genuinely, that's the API) — or open your own envelope at [books URL]/onboard and compose it yourself from the bounded vocabulary; paper is free, live is my yes
+· You send it a strategy in plain English (reply to this thread — genuinely, that's the API) — or open your own envelope at thedesk-21bh.onrender.com/onboard and compose it yourself from the bounded vocabulary; paper is free, live is my yes
 · It compiles your words into a **mandate**: a contract with a symbol whitelist, a per-order cap, a daily loss cap, and a stop floor *you cannot remove*
 · It tests your mandate against real Binance history, then paper-trades it on live prices — free
 · When it graduates to live, it trades it and charges a fee per fill
 
-Every decision it makes — every fill, every refusal, every order it clamped because a signal got greedy — lands on a public books page, hash-chained so nothing can be quietly edited: [books URL]
+Every decision it makes — every fill, every refusal, every order it clamped because a signal got greedy — lands on a public books page, hash-chained so nothing can be quietly edited: thedesk-21bh.onrender.com
 
 It pays its own hosting and inference bills from those fees. The number to watch is one line on the books: **self-funded %**.
 
