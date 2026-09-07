@@ -49,6 +49,8 @@ signals:  plain English ──▶ compiler ──▶ proposal ──▶ validate
 
 **Self-serve:** composition happens on the front end against the same validator the founder uses — strangers compose, they never submit code. Paper envelopes are issued instantly (free, 7-day box); live envelopes are the graduation gate. Public mode (`DESK_PUBLIC=1`) exposes books + `/onboard` + the intent API, strips founder routes unless a strong founder key is set, and throttles proposals (6/hour/address, 100/day).
 
+**Connection tiers (production roadmap):** (1) customer's own Agent OS keyless connection — no secret touches the desk (preferred, demoed); (2) customer **sub-account** API keys — read+trade scopes only, no-withdrawal enforced, IP-pinned, write-only encrypted intake, instant revoke by deleting the key; (3) fee collection on customer accounts via Binance's **OMS-provider mechanism** (API-Key Terms §6: Binance collects a provider's per-trade fee as a markup on transaction fees) — the exchange-native rail for per-fill billing.
+
 ## Repo layout
 
 - `src/desk.mjs` — the desk: HTTP API, envelopes, fee meter, public books (`GET /` = dashboard)
